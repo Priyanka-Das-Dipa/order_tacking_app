@@ -1,5 +1,4 @@
 // server.js
-
 import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
@@ -7,6 +6,7 @@ import { connectDB, getCollection, closeDB } from "./config/database.js";
 import { Server } from "socket.io";
 import http from "http";
 import { orderHandler } from "./socket/orderHandler.js";
+import { generateOrderId } from "./utility/helper.js";
 
 // Load environment variables
 dotenv.config();
@@ -24,7 +24,12 @@ const io = new Server(server, {
 
 io.on("connection", (socket) => {
   console.log("a user connected", socket.id);
-  socket.emit("Connected!!", `USer ${socket.id} connected to server`);
+  socket.emit("Connected!!", `User ${socket.id} connected to server`);
+
+  // orderID
+  console.log(generateOrderId());
+
+  // handling the order events
   orderHandler(io, socket);
 });
 

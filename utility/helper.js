@@ -1,3 +1,5 @@
+// oder validation helper
+
 export function validateOrder(data) {
     if(!data.customerName?.trim()){
         return{
@@ -20,4 +22,14 @@ export function validateOrder(data) {
         }
     }
     return { valid: true };
+}
+
+// order ID generator
+export function generateOrderId() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const random = Math.floor(Math.random() * 10000).toString().padStart(3, '0');
+    return `ORD-${year}${month}${day}-${random}`;
 }

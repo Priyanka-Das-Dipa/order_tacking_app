@@ -1,4 +1,4 @@
-import { validateOrder } from "../utility/helper";
+import { validateOrder } from "../utility/helper.js";
 
 export const orderHandler = (io, socket) => {
   console.log("a user connected", socket.id);
