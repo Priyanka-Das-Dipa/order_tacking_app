@@ -19,19 +19,18 @@ export const orderHandler = (io, socket) => {
 
       // calculate total, orderID and order Document
       const total = calculateTotal(data.items);
-      const orderID = generateOrderId();
-      const order = createOrderDocument(data, orderID, total);
+      const orderId = generateOrderId();
+      const order = createOrderDocument(data, orderId, total);
 
       const orderCollection = getCollection("orders");
       await orderCollection.insertOne(order);
 
-      socket.join(`order-${orderID}`);
+      socket.join(`order-${orderId}`);
       socket.join("customers");
 
       (io.to("admins").emit("newOrder", { order }),
-      callback({ success: true, order }));
-      console.log(`order created: ${orderID}`);
-
+        callback({ success: true, order }));
+      console.log(`order created: ${orderId}`);
     } catch (error) {
       console.log(error);
       callback({
@@ -54,27 +53,25 @@ export const orderHandler = (io, socket) => {
         });
       }
 
-      socket.join(`order-${data?.orderID}`);
+      socket.join(`order-${data?.orderId}`);
       callback({
         success: true,
         order,
       });
     } catch (error) {
-      console.error('Order Tracking Error:', error);
+      console.error("Order Tracking Error:", error);
       callback({
         success: false,
         message: error?.message || "Failed to track order. Try again!!",
-      })
+      });
     }
   });
 
-
   // order cancel
-  socket.on('cancelOrder', async (data, callback) => {
+  socket.on("cancelOrder", async (data, callback) => {
     try {
-
       const ordersCollection = getCollection("orders");
-      const order = await ordersCollection.findOne({orderId: data?.orderId});
+      const order = await ordersCollection.findOne({ orderId: data?.orderId });
       if (!order) {
         return callback({
           success: false,
@@ -82,21 +79,40 @@ export const orderHandler = (io, socket) => {
         });
       }
 
-      if(!['pending', 'confirmed'].includes(order?.status)) {
+      if (!["pending", "confirmed"].includes(order?.status)) {
         return callback({
           success: false,
           message: "Order cannot be cancelled at this stage!",
-        })
+        });
       }
 
       // update order status to cancelled
       await ordersCollection.updateOne(
-        {orderId: data?.orderId},
-        {}
-      )
+        { orderId: data?.orderId },
+        {
+          $set: { status: "cancelled", updateAt: new Date() },
+          $push: {
+            statusHistory: {
+              status: "cancelled",
+              timestamp: new Date(),
+              by: socket.id,
+              note: data.reason || "Cancelled by customer",
+            },
+          },
+        },
+      );
+
+      io.to(`order-${data?.orderId}`).emit("orderCancelled", {
+        orderId: data.orderId,
+      });
+      io.to("admins").emit("orderCancelled", {
+        orderId: data.orderId,
+        customerName: order.customerName,
+      });
+
+
+      callback({success: true, message: "Order cancelled successfully!"});
       
-    } catch (error) {
-      
-    }
-  })
+    } catch (error) {}
+  });
 };
