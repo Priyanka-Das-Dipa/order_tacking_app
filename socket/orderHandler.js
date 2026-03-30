@@ -67,4 +67,36 @@ export const orderHandler = (io, socket) => {
       })
     }
   });
+
+
+  // order cancel
+  socket.on('cancelOrder', async (data, callback) => {
+    try {
+
+      const ordersCollection = getCollection("orders");
+      const order = await ordersCollection.findOne({orderId: data?.orderId});
+      if (!order) {
+        return callback({
+          success: false,
+          message: "Order not found!",
+        });
+      }
+
+      if(!['pending', 'confirmed'].includes(order?.status)) {
+        return callback({
+          success: false,
+          message: "Order cannot be cancelled at this stage!",
+        })
+      }
+
+      // update order status to cancelled
+      await ordersCollection.updateOne(
+        {orderId: data?.orderId},
+        {}
+      )
+      
+    } catch (error) {
+      
+    }
+  })
 };
