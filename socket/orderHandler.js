@@ -2,6 +2,7 @@ import {
   calculateTotal,
   createOrderDocument,
   generateOrderId,
+  isValidStatusTransition,
   validateOrder,
 } from "../utility/helper.js";
 
@@ -132,7 +133,6 @@ export const orderHandler = (io, socket) => {
         ?.limit(20)
         ?.toArray();
       callback({ success: true, orders });
-
     } catch (error) {
       console.error("Get Orders Error:", error);
       callback({
@@ -142,34 +142,69 @@ export const orderHandler = (io, socket) => {
     }
   });
 
-
-
-
   // Admin events
 
   // admin login
-  socket.on('adminLogin', async(data, callback) =>{
+  socket.on("adminLogin", async (data, callback) => {
     try {
-      if(data.password === process.env.ADMIN_PASSWORD){
+      if (data.password === process.env.ADMIN_PASSWORD) {
         socket.isAdmin = true;
         socket.join("admins");
         console.log(`Admin logged in: ${socket.id}`);
-        callback({success: true, message: "Admin login successful!"})
-      }else{
+        callback({ success: true, message: "Admin login successful!" });
+      } else {
         callback({
           success: false,
-          message: "Invalid password. Admin login failed!",})
+          message: "Invalid password. Admin login failed!",
+        });
       }
-
     } catch (error) {
       callback({
         success: false,
         message: error?.message || "Admin login failed. Try again!!",
-      })
-      
+      });
     }
-  })
+  });
 
+  // get all orders
+  socket.on("getAllOrders", async (data, callback) => {
+    try {
+      if (!socket.isAdmin) {
+        return callback({ success: false, message: "Unauthorized access!" });
+      }
 
-  
+      const ordersCollection = getCollection("orders");
+      const filter = data?.status ? { status: data?.status } : {};
+      const orders = await ordersCollection
+        .find(filter)
+        .sort({ createdAt: -1 })
+        ?.limit(20)
+        ?.toArray();
+      callback({ success: true, orders });
+    } catch (error) {
+      callback({ success: false, message: "Failed to load data!" });
+    }
+  });
+
+  // update order status
+  socket.on("updateOrderStatus", async (data, callback) => {
+    try {
+      const ordersCollection = getCollection("orders");
+      const order = await ordersCollection.findOne({ orderId: data?.orderId });
+
+      if (!order) {
+        return callback({ success: false, message: "Order not found!" });
+      }
+
+      if (!isValidStatusTransition(order?.status, data?.newStatus)) {
+        return callback({
+          success: false,
+          message: "Invalid status transition!",
+        });
+      }
+      
+    } catch (error) {
+      callback({ success: false, message: "Failed to update order status!" });
+    }
+  });
 };
