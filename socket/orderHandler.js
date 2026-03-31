@@ -214,28 +214,83 @@ export const orderHandler = (io, socket) => {
               timestamp: new Date(),
               by: socket.id,
               note: data.note || `Status changed to ${data?.newStatus}`,
-            }
+            },
           },
         },
         { returnDocument: "after" },
-
-
       );
 
       io.to(`order-${data?.orderId}`).emit("orderStatusUpdated", {
         orderId: data?.orderId,
         newStatus: data?.newStatus,
         order: result,
-      })
+      });
 
-      socket.to('admin').emit("orderStatusUpdated", {orderId: data?.orderId,
+      socket.to("admin").emit("orderStatusUpdated", {
+        orderId: data?.orderId,
         newStatus: data?.newStatus,
-      })
+      });
 
-      callback({ success: true, order: result, message: "Order status updated successfully!" });
-
+      callback({
+        success: true,
+        order: result,
+        message: "Order status updated successfully!",
+      });
     } catch (error) {
       callback({ success: false, message: "Failed to update order status!" });
+    }
+  });
+
+  // accept order
+  socket.on("acceptOrder", async (data, callback) => {
+    try {
+      if (!socket.isAdmin) {
+        return callback({ success: false, message: "Unauthorized access!" });
+      }
+
+      const orderCollection = getCollection("orders");
+      const order = await orderCollection.findOne({ orderId: data?.orderId });
+
+      if (!order || order?.status !== "pending") {
+        return callback({
+          success: false,
+          message: "Order not found or cannot be accepted!",
+        });
+      }
+
+      const estimatedTime = data?.estimatedTime || 30; // default 30 mins
+
+      const result = await orderCollection.findOneAndUpdate(
+        {
+          orderId: data?.orderId,
+        },
+        {
+          $set: { status: "confirmed", estimatedTime, updateAt: new Date() },
+          $push: {
+            statusHistory: {
+              status: "confirmed",
+              timestamp: new Date(),
+              by: socket.id,
+              note: `Order accepted with estimated time ${estimatedTime} mins`,
+            },
+          },
+        },
+        { returnDocument: "after" },
+      );
+      io.to(`order-${data?.orderId}`).emit("orderAccepted", {
+        orderId: data?.orderId,
+        estimatedTime,
+      });
+
+      socket.to("admin").emit("orderAcceptedByAdmin", {orderId: data?.orderId});
+      callback({
+        success: true,
+        order: result,
+        message: "Order accepted successfully!",
+      });
+
+    } catch (error) {
+      callback({ success: false, message: error?.message || "Failed to accept order!" });
     }
   });
 };
