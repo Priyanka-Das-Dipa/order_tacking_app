@@ -282,15 +282,116 @@ export const orderHandler = (io, socket) => {
         estimatedTime,
       });
 
-      socket.to("admin").emit("orderAcceptedByAdmin", {orderId: data?.orderId});
+      socket
+        .to("admin")
+        .emit("orderAcceptedByAdmin", { orderId: data?.orderId });
       callback({
         success: true,
         order: result,
         message: "Order accepted successfully!",
       });
-
     } catch (error) {
-      callback({ success: false, message: error?.message || "Failed to accept order!" });
+      callback({
+        success: false,
+        message: error?.message || "Failed to accept order!",
+      });
+    }
+  });
+
+  // reject order
+  socket.on("rejectedOrder", async (data, callback) => {
+    try {
+      if (!socket.isAdmin) {
+        return callback({ success: false, message: "Unauthorized access!" });
+      }
+
+      const orderCollection = getCollection("orders");
+      const order = await orderCollection.findOne({ orderId: data?.orderId });
+
+      if (!order || order?.status !== "pending") {
+        return callback({
+          success: false,
+          message: "Order cannot be cancelled!",
+        });
+      }
+
+      const result = await orderCollection.findOneAndUpdate(
+        {
+          orderId: data?.orderId,
+        },
+        {
+          $set: { status: "cancelled", updateAt: new Date() },
+          $push: {
+            statusHistory: {
+              status: "cancelled",
+              timestamp: new Date(),
+              by: socket.id,
+              note: `Order cancelled !`,
+            },
+          },
+        },
+        { returnDocument: "after" },
+      );
+      io.to(`order-${data?.orderId}`).emit("orderRejected", {
+        orderId: data?.orderId,
+        reason: data?.reason || "Order rejected by admin",
+      });
+
+      socket.to("admin").emit("orderRejectedByAdmin", {
+        reason: data?.reason || "Order rejected by admin",
+      });
+      callback({
+        success: true,
+      });
+    } catch (error) {
+      callback({
+        success: false,
+        message: error?.message || "Failed to reject order!",
+      });
+    }
+  });
+
+  // Live Status of orders
+
+  socket.on("getLiveStatus", async (data, callback) => {
+    try {
+      if (!socket?.isAdmin) {
+        return callback({ success: false, message: "Unauthorized access!" });
+      }
+
+      const orderCollection = getCollection("orders");
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const stats = {
+        totalToday: await orderCollection.countDocuments({
+          createdAt: { $gte: today },
+        }),
+        pending: await orderCollection.countDocuments({ status: "pending" }),
+        confirmed: await orderCollection.countDocuments({
+          status: "confirmed",
+        }),
+        preparing: await orderCollection.countDocuments({
+          status: "preparing",
+        }),
+        ready: await orderCollection.countDocuments({ status: "ready" }),
+        outForDelivery: await orderCollection.countDocuments({
+          status: "out_for_delivery",
+        }),
+        delivered: await orderCollection.countDocuments({
+          status: "delivered",
+        }),
+        cancelled: await orderCollection.countDocuments({
+          status: "cancelled",
+        }),
+      };
+
+      callback({ success: true, stats });
+    } catch (error) {
+      callback({
+        success: false,
+        message: error?.message || "Failed to get live status!",        
+      });
     }
   });
 };
