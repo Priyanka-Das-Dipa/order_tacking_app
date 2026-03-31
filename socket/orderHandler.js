@@ -202,7 +202,38 @@ export const orderHandler = (io, socket) => {
           message: "Invalid status transition!",
         });
       }
-      
+
+      // update order status
+      const result = await orderCollection.findOneAndUpdate(
+        { orderId: data?.orderId },
+        {
+          $set: { status: data?.newStatus, updateAt: new Date() },
+          $push: {
+            statusHistory: {
+              status: data?.newStatus,
+              timestamp: new Date(),
+              by: socket.id,
+              note: data.note || `Status changed to ${data?.newStatus}`,
+            }
+          },
+        },
+        { returnDocument: "after" },
+
+
+      );
+
+      io.to(`order-${data?.orderId}`).emit("orderStatusUpdated", {
+        orderId: data?.orderId,
+        newStatus: data?.newStatus,
+        order: result,
+      })
+
+      socket.to('admin').emit("orderStatusUpdated", {orderId: data?.orderId,
+        newStatus: data?.newStatus,
+      })
+
+      callback({ success: true, order: result, message: "Order status updated successfully!" });
+
     } catch (error) {
       callback({ success: false, message: "Failed to update order status!" });
     }
