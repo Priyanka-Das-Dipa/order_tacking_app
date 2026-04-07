@@ -5,6 +5,7 @@ import {
   isValidStatusTransition,
   validateOrder,
 } from "../utility/helper.js";
+import { getCollection } from "../config/database.js";
 
 export const orderHandler = (io, socket) => {
   console.log("a user connected", socket.id);
@@ -390,7 +391,7 @@ export const orderHandler = (io, socket) => {
     } catch (error) {
       callback({
         success: false,
-        message: error?.message || "Failed to get live status!",        
+        message: error?.message || "Failed to get live status!",
       });
     }
   });

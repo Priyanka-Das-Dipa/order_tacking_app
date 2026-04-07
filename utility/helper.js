@@ -47,12 +47,16 @@ export function calculateTotal(items) {
     (sum, item) => sum + item.price * item.quantity,
     0,
   );
-  const tax = subTotal * 0.1; 
+  const tax = subTotal * 0.1;
   const deliveryFee = 35.0;
   const total = subTotal + tax + deliveryFee;
 
   return {
-    subTotal: Math.reduce(subTotal * 100) / 100,
+    // subTotal: Math.reduce(subTotal * 100) / 100,
+    // tax: Math.round(tax * 100) / 100,
+    // deliveryFee,
+    // totalAmount: Math.round(total * 100) / 100,
+    subTotal: Math.round(subTotal * 100) / 100,
     tax: Math.round(tax * 100) / 100,
     deliveryFee,
     totalAmount: Math.round(total * 100) / 100,
@@ -85,23 +89,22 @@ export function createOrderDocument(orderData, orderId, totals) {
     ],
     estimatedTime: null,
     createdAt: new Date(),
-    updatedAt: new Date()
+    updatedAt: new Date(),
   };
 }
-
 
 // Status Validation
 
 export function isValidStatusTransition(currentStatus, newStatus) {
-    const validTransitions = {
-        'pending': ['confirmed', 'cancelled'],
-        'confirmed': ['preparing', 'cancelled'],
-        'preparing': ['ready', 'cancelled'],
-        'ready': ['out_for_delivery', 'cancelled'],
-        'out_for_delivery': ['delivered'],
-        'delivered': [],
-        'cancelled': []
-    }
+  const validTransitions = {
+    pending: ["confirmed", "cancelled"],
+    confirmed: ["preparing", "cancelled"],
+    preparing: ["ready", "cancelled"],
+    ready: ["out_for_delivery", "cancelled"],
+    out_for_delivery: ["delivered"],
+    delivered: [],
+    cancelled: [],
+  };
 
-    return validTransitions[currentStatus]?.includes(newStatus) || false;
+  return validTransitions[currentStatus]?.includes(newStatus) || false;
 }
