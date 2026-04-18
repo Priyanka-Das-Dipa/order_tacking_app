@@ -205,7 +205,7 @@ export const orderHandler = (io, socket) => {
       }
 
       // update order status
-      const result = await orderCollection.findOneAndUpdate(
+      const result = await ordersCollection.findOneAndUpdate(
         { orderId: data?.orderId },
         {
           $set: { status: data?.newStatus, updateAt: new Date() },
