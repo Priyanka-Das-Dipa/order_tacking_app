@@ -43,7 +43,7 @@ app.use(express.urlencoded({ extended: true }));
 // ==========================================
 
 // Health check endpoint
-app.get("/health", (req, res) => {
+app.get("/api", (req, res) => {
   res.json({
     status: "ok",
     message: "Server is running",
@@ -151,7 +151,7 @@ connectDB()
 ╚════════════════════════════════════════╝
     `);
       console.log("📝 API Endpoints:");
-      console.log(`   GET  /health`);
+      console.log(`   GET  /api`);
       console.log(`   GET  /api/orders`);
       console.log(`   GET  /api/orders/:orderId`);
       console.log("\n✨ Ready! time to explore Socket.IO \n");
